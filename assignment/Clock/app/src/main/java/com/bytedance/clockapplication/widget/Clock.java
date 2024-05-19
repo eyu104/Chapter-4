@@ -4,12 +4,15 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Typeface;
+import android.os.Handler;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
 import android.view.View;
 
 import java.util.Calendar;
 import java.util.Date;
+
 
 public class Clock extends View {
 
@@ -41,6 +44,20 @@ public class Clock extends View {
     private int degreesColor;
 
     private Paint mNeedlePaint;
+
+    private Handler mHandler = new Handler();
+    private Runnable mRunnable = new Runnable() {
+        @Override
+        public void run() {
+            invalidate();
+        }
+    };
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        mHandler.removeCallbacks(mRunnable);
+    }
 
     public Clock(Context context) {
         super(context);
@@ -105,8 +122,8 @@ public class Clock extends View {
         drawHoursValues(canvas);
         drawNeedles(canvas);
 
-        // todo 每一秒刷新一次，让指针动起来
-
+        //  每一秒刷新一次，让指针动起来
+        mHandler.postDelayed(mRunnable,1000);
     }
 
     private void drawDegrees(Canvas canvas) {
@@ -147,7 +164,24 @@ public class Clock extends View {
     private void drawHoursValues(Canvas canvas) {
         // Default Color:
         // - hoursValuesColor
+        Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        textPaint.setColor(Color.WHITE);
+        textPaint.setTextSize(40); // 设置字体大小
 
+        int rText = mCenterX - (int) (mWidth * 0.08f); // 文字距离中心点的距离
+
+        for (int i = 0; i < 12; i++) {
+            String hourValue = String.valueOf(i == 0 ? 12 : i); // 表盘上小时值，从12开始到11
+            float textWidth = textPaint.measureText(hourValue); // 计算文字宽度
+            float textHeight = (textPaint.descent() + textPaint.ascent()) / 2; // 计算文字高度
+
+            // 计算文字绘制位置
+            float x = (float) (mCenterX + rText * Math.cos(Math.toRadians(i * 30 - 90)));
+            float y = (float) (mCenterY + rText * Math.sin(Math.toRadians(i * 30 - 90))) - textHeight;
+
+            // 绘制文字
+            canvas.drawText(hourValue, x - textWidth / 2, y, textPaint);
+        }
 
     }
 
@@ -166,7 +200,7 @@ public class Clock extends View {
         // 画秒针
         drawPointer(canvas, 2, nowSeconds);
         // 画分针
-        // todo 画分针
+        drawPointer(canvas,1,nowMinutes);
         // 画时针
         int part = nowMinutes / 12;
         drawPointer(canvas, 0, 5 * nowHours + part);
@@ -175,7 +209,7 @@ public class Clock extends View {
     }
 
 
-    private void drawPointer(Canvas canvas, int pointerType, int value) {
+    private void drawPointer(Canvas canvas, int pointerType, float value) {
 
         float degree;
         float[] pointerHeadXY = new float[2];
@@ -188,8 +222,10 @@ public class Clock extends View {
                 pointerHeadXY = getPointerHeadXY(HOUR_POINTER_LENGTH, degree);
                 break;
             case 1:
-                // todo 画分针，设置分针的颜色
-
+                // 画分针，设置分针的颜色
+                degree = value * UNIT_DEGREE;
+                mNeedlePaint.setColor(Color.RED);
+                pointerHeadXY = getPointerHeadXY(MINUTE_POINTER_LENGTH, degree);
                 break;
             case 2:
                 degree = value * UNIT_DEGREE;
